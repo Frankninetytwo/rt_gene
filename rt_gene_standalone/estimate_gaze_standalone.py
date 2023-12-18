@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
+sys.path.append('rt_gene/src')
 from rt_gene.extract_landmarks_method_base import LandmarkMethodBase
 from rt_gene.gaze_tools import get_phi_theta_from_euler, limit_yaw
 from rt_gene.gaze_tools_standalone import euler_from_matrix
@@ -164,6 +165,7 @@ if __name__ == '__main__':
         image_path_list.append(os.path.split(args.im_path)[1])
         args.im_path = os.path.split(args.im_path)[0]
     elif os.path.isdir(args.im_path):
+        print('args.im_path =', args.im_path)
         for image_file_name in sorted(os.listdir(args.im_path)):
             if image_file_name.lower().endswith('.jpg') or image_file_name.lower().endswith('.png') or image_file_name.lower().endswith('.jpeg'):
                 if '_gaze' not in image_file_name and '_headpose' not in image_file_name:
@@ -186,7 +188,7 @@ if __name__ == '__main__':
     elif args.gaze_backend == "pytorch":
         from rt_gene.estimate_gaze_pytorch import GazeEstimator
 
-        gaze_estimator = GazeEstimator("cuda:0", args.models)
+        gaze_estimator = GazeEstimator(args.device_id_facedetection, args.models)
     else:
         raise ValueError("Incorrect gaze_base backend, choices are: tensorflow or pytorch")
 
