@@ -11,7 +11,8 @@ NOTE: The $ symbol means that the text that follows must be executed in terminal
 The above 3 steps fix an error that prevents importing ParamSpec from typing_extensions. Step 7 will probably throw some errors regarding dependency issues with tensorflow, but that doesn't matter, because rt_gene allows to use torch instead.
 08. git clone https://github.com/Frankninetytwo/rt_gene.git
 09. $ cd rt_gene
-
-**NOTE**: Do not put anything inside the rt_gene/InputImages folder. First, the contents get deleted multiple times when the feature extraction script is executed. Also, if there is another file inside such folder then that might confuse the program leading to undefined behavior (analyzing files that are not meant to be analyzed, thinking there are more video frames than there really are, etc.).
+10. $ mkdir OutputImages
+11. $ mkdir InputImages<br>
+**NOTE**: Do not put anything inside the above created folder. First, the contents get deleted multiple times when the feature extraction script is executed. Also, if there is another file inside such folder then that might confuse the program leading to undefined behavior (analyzing files that are not meant to be analyzed, thinking there are more video frames than there really are, etc.).
 
 Feature extraction works exactly the same way as in my L2CS-Net repo. It's explained at the end of that repo's README.md. Note that rt_gene will download some model files when it is executed for the first time.

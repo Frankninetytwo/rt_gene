@@ -22,7 +22,7 @@ if __name__ == '__main__':
         '--save-gaze '
         '--save-estimate '
         '--gaze_backend pytorch '
-        '--output_path Output '
+        '--output_path OutputImages '
         '--models rt_gene/model_nets/gaze_model_pytorch_vgg16_prl_mpii_allsubjects1.model '
         '--device-id-facedetection cpu:0'
         )
