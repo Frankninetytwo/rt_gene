@@ -3,6 +3,17 @@ import os
 
 if __name__ == '__main__':
 
+    #
+    # delete everything inside InputImages folder
+    #
+
+    #
+    # - read the video with cv2.VideoCapture and write the frames to InputImages folder
+    # - name the files 0.jpg, 1.jpg, ...
+    # 
+
+
+
     os.system(
         'python3 rt_gene_standalone/estimate_gaze_standalone.py '
         ' InputImages '
