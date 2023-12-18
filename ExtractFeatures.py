@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     os.system(
         'python3 rt_gene_standalone/estimate_gaze_standalone.py '
-        ' InputImages '
+        'InputImages '
         '--no-vis-headpose '
         '--no-vis-gaze '
         '--save-gaze '
