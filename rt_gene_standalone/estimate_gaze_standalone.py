@@ -12,6 +12,8 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
+import math
+from pathlib import Path
 
 sys.path.append('rt_gene/src')
 from rt_gene.extract_landmarks_method_base import LandmarkMethodBase
@@ -39,11 +41,17 @@ def extract_eye_image_patches(subjects):
         subject.right_eye_color = re_c
 
 
-def estimate_gaze(base_name, color_img, dist_coefficients, camera_matrix):
+def estimate_gaze(base_name, color_img, dist_coefficients, camera_matrix, args, output_images_path):
+    
+    # If there no person or more than 1 person found in the image I don't know whose gaze to use,
+    # hence return nan in these cases.
+    yaw_hat = math.nan
+    pitch_hat = math.nan
+
     faceboxes = landmark_estimator.get_face_bb(color_img)
     if len(faceboxes) == 0:
         tqdm.write('Could not find faces in the image')
-        return
+        return yaw_hat, pitch_hat
 
     subjects = landmark_estimator.get_subjects_from_faceboxes(color_img, faceboxes)
     extract_eye_image_patches(subjects)
@@ -52,7 +60,7 @@ def estimate_gaze(base_name, color_img, dist_coefficients, camera_matrix):
     input_l_list = []
     input_head_list = []
     valid_subject_list = []
-
+    
     for idx, subject in enumerate(subjects):
         if subject.left_eye_color is None or subject.right_eye_color is None:
             tqdm.write('Failed to extract eye image patches')
@@ -92,15 +100,16 @@ def estimate_gaze(base_name, color_img, dist_coefficients, camera_matrix):
 
         if args.save_headpose:
             # add idx to cope with multiple persons in one image
-            cv2.imwrite(os.path.join(args.output_path, os.path.splitext(base_name)[0] + '_headpose_%s.jpg'%(idx)), head_pose_image)
+            cv2.imwrite(os.path.join(output_images_path, os.path.splitext(base_name)[0] + '_headpose_%s.jpg'%(idx)), head_pose_image)
 
         input_r_list.append(gaze_estimator.input_from_image(subject.right_eye_color))
         input_l_list.append(gaze_estimator.input_from_image(subject.left_eye_color))
         input_head_list.append([theta_head, phi_head])
         valid_subject_list.append(idx)
 
-    if len(valid_subject_list) == 0:
-        return
+
+    if len(valid_subject_list) != 1:
+        return yaw_hat, pitch_hat
 
     gaze_est = gaze_estimator.estimate_gaze_twoeyes(inference_input_left_list=input_l_list,
                                                     inference_input_right_list=input_r_list,
@@ -120,21 +129,45 @@ def estimate_gaze(base_name, color_img, dist_coefficients, camera_matrix):
 
         if args.save_gaze:
             # add subject_id to cope with multiple persons in one image
-            cv2.imwrite(os.path.join(args.output_path, os.path.splitext(base_name)[0] + '_gaze_%s.jpg'%(subject_id)), s_gaze_img)
-            # cv2.imwrite(os.path.join(args.output_path, os.path.splitext(base_name)[0] + '_left.jpg'), subject.left_eye_color)
-            # cv2.imwrite(os.path.join(args.output_path, os.path.splitext(base_name)[0] + '_right.jpg'), subject.right_eye_color)
+            cv2.imwrite(os.path.join(output_images_path, os.path.splitext(base_name)[0] + '_gaze_%s.jpg'%(subject_id)), s_gaze_img)
+            # cv2.imwrite(os.path.join(output_images_path, os.path.splitext(base_name)[0] + '_left.jpg'), subject.left_eye_color)
+            # cv2.imwrite(os.path.join(output_images_path, os.path.splitext(base_name)[0] + '_right.jpg'), subject.right_eye_color)
 
-        if args.save_estimate:
-            # add subject_id to cope with multiple persons in one image
-            with open(os.path.join(args.output_path, os.path.splitext(base_name)[0] + '_output_%s.txt'%(subject_id)), 'w+') as f:
-                f.write(os.path.splitext(base_name)[0] + ', [' + str(headpose[1]) + ', ' + str(headpose[0]) + ']' +
-                        ', [' + str(gaze[1]) + ', ' + str(gaze[0]) + ']' + '\n')
+        filename = os.path.splitext(base_name)[0]
+        yaw_hat = gaze[1]
+        pitch_hat = gaze[0]
+        with open(os.path.join(output_images_path, filename + '_output_%s.txt'%(subject_id)), 'w+') as f:
+            f.write(filename + ', [' + str(headpose[1]) + ', ' + str(headpose[0]) + ']' +
+                    ', [' + str(gaze[1]) + ', ' + str(gaze[0]) + ']' + '\n')
+    
+    return yaw_hat, pitch_hat
 
+
+# File will be written to
+# CWD/Output/filename_of_video_without_file_extension.csv
+# where filename_of_video_without_file_extension is a parameter of this function.
+def write_estimated_gaze_to_file(filename_of_video_without_file_extension, timestamp_by_image_name, pitch_by_image_name, yaw_by_image_name):
+    
+    output_path = str(Path.cwd()) + '/Output/' + filename_of_video_without_file_extension + '.csv'
+    
+    with open(output_path, 'w') as f:
+        
+        f.write('frame,timestamp in s,success,yaw in radians,pitch in radians\n')
+
+        # n-th frame of video is written to file with the name n.jpg. This name is used
+        # as key to access the coressponding timestamp, yaw and pitch.
+        for image_name in [str(i) for i in range(0, len(timestamp_by_image_name.keys()))]:
+            f.write('{},{},{},{},{}\n'.format(
+                int(image_name)+1,
+                str(round(timestamp_by_image_name[image_name], 3)), # +/- 0.001 radians (less 0.1 degrees) can be rounded off (easier to compare output file to output from OpenFace)
+                0 if math.isnan(yaw_by_image_name[image_name]) else 1, # pitch and yaw are set to nan whenever no person or more than 2 persons were detected in a video frame
+                str(round(-yaw_by_image_name[image_name], 3)), # negate value to adjust to OpenFace output
+                str(round(pitch_by_image_name[image_name], 3)))
+                )
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Estimate gaze from images')
-    parser.add_argument('im_path', type=str, default=os.path.abspath(os.path.join(script_path, './samples_gaze/')),
-                        nargs='?', help='Path to an image or a directory containing images')
+    parser = argparse.ArgumentParser(description='Estimate gazes in a video using pretrained model')
+    parser.add_argument('--video', type=str, dest='video_path', help='path of the video to proccess')
     parser.add_argument('--calib-file', type=str, dest='calib_file', default=None, help='Camera calibration file')
     parser.add_argument('--vis-headpose', dest='vis_headpose', action='store_true', help='Display the head pose images')
     parser.add_argument('--no-vis-headpose', dest='vis_headpose', action='store_false', help='Do not display the head pose images')
@@ -143,11 +176,8 @@ if __name__ == '__main__':
     parser.add_argument('--vis-gaze', dest='vis_gaze', action='store_true', help='Display the gaze images')
     parser.add_argument('--no-vis-gaze', dest='vis_gaze', action='store_false', help='Do not display the gaze images')
     parser.add_argument('--save-gaze', dest='save_gaze', action='store_true', help='Save the gaze images')
-    parser.add_argument('--save-estimate', dest='save_estimate', action='store_true', help='Save the predictions in a text file')
     parser.add_argument('--no-save-gaze', dest='save_gaze', action='store_false', help='Do not save the gaze images')
     parser.add_argument('--gaze_backend', choices=['tensorflow', 'pytorch'], default='tensorflow')
-    parser.add_argument('--output_path', type=str, default=os.path.abspath(os.path.join(script_path, './samples_gaze/out')),
-                        help='Output directory for head pose and gaze images')
     parser.add_argument('--models', nargs='+', type=str, default=[os.path.abspath(os.path.join(script_path, '../rt_gene/model_nets/Model_allsubjects1.h5'))],
                         help='List of gaze estimators')
     parser.add_argument('--device-id-facedetection', dest="device_id_facedetection", type=str, default='cuda:0', help='Pytorch device id. Set to "cpu:0" to disable cuda')
@@ -156,23 +186,62 @@ if __name__ == '__main__':
     parser.set_defaults(save_gaze=True)
     parser.set_defaults(vis_headpose=False)
     parser.set_defaults(save_headpose=True)
-    parser.set_defaults(save_estimate=False)
 
     args = parser.parse_args()
 
+    # !!!
+    # !!!!
+    # !!!!!
+    # CAREFUL WHEN EDITING THIS PATH: Everything inside this folder gets deleted, so don't
+    # assign a path to it that contains valuable data.
+    im_path = str(Path.cwd()) + '/Frames'
+    timestamp_by_image_name = dict()
+
+    os.system('rm ' + im_path + '/*')
+
+
+    output_images_path = str(Path.cwd()) + '/OutputImages'
+
+    if not os.path.isdir(output_images_path):
+        os.makedirs(output_images_path)
+
+    os.system('rm ' + output_images_path + '/*')
+
+
+    video_capture = cv2.VideoCapture(args.video_path)
+    frame_index = 0
+
+    while True:
+
+            success, frame = video_capture.read()
+
+            if not success:
+                # no further frames available
+                break
+
+            # cv2.CAP_PROP_POS_MSEC is sometimes very far off! For the final frame of an approx. 29.000 ms long video (.webm) it
+            # returned me a timestamp of almost 35.000 ms!
+            #timestamp_by_frame.append(video_capture.get(cv2.CAP_PROP_POS_MSEC))
+            # ... So instead I'm going to estimate the timestamp like OpenFace does it
+            # (see /OpenFace/lib/local/Utilities/src/SequenceCapture.cpp, line 457)
+            current_timestamp = round(frame_index * (1.0 / video_capture.get(cv2.CAP_PROP_FPS)), 3)
+            timestamp_by_image_name[str(frame_index)] = current_timestamp
+
+            cv2.imwrite(im_path + '/' + str(frame_index) + ".jpg", frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+            frame_index += 1
+
+    video_capture.release()
+
+
     image_path_list = []
-    if os.path.isfile(args.im_path):
-        image_path_list.append(os.path.split(args.im_path)[1])
-        args.im_path = os.path.split(args.im_path)[0]
-    elif os.path.isdir(args.im_path):
-        print('args.im_path =', args.im_path)
-        for image_file_name in sorted(os.listdir(args.im_path)):
-            if image_file_name.lower().endswith('.jpg') or image_file_name.lower().endswith('.png') or image_file_name.lower().endswith('.jpeg'):
-                if '_gaze' not in image_file_name and '_headpose' not in image_file_name:
-                    image_path_list.append(image_file_name)
-    else:
-        tqdm.write('Provide either a path to an image or a path to a directory containing images')
-        sys.exit(1)
+    for image_file_name in sorted(os.listdir(im_path)):
+        if image_file_name.lower().endswith('.jpg') or image_file_name.lower().endswith('.png') or image_file_name.lower().endswith('.jpeg'):
+            if '_gaze' not in image_file_name and '_headpose' not in image_file_name:
+                image_path_list.append(image_file_name)
 
     tqdm.write('Loading networks')
     landmark_estimator = LandmarkMethodBase(device_id_facedetection=args.device_id_facedetection,
@@ -191,13 +260,19 @@ if __name__ == '__main__':
         gaze_estimator = GazeEstimator(args.device_id_facedetection, args.models)
     else:
         raise ValueError("Incorrect gaze_base backend, choices are: tensorflow or pytorch")
+    
 
-    if not os.path.isdir(args.output_path):
-        os.makedirs(args.output_path)
-
+    
+    # E.g. if gaze estimation is applied on the image named 23.jpg, then there is a key '23',
+    # which points to the corresponding gaze estimation value (yaw resp. pitch). The
+    # value is nan if the image contains 0 or more than one person. In that case I
+    # don't know whose gaze to use.
+    yaw_by_image_name = dict()
+    pitch_by_image_name = dict()
+    
     for image_file_name in tqdm(image_path_list):
         tqdm.write('Estimate gaze on ' + image_file_name)
-        image = cv2.imread(os.path.join(args.im_path, image_file_name))
+        image = cv2.imread(os.path.join(im_path, image_file_name))
         if image is None:
             tqdm.write('Could not load ' + image_file_name + ', skipping this image.')
             continue
@@ -210,4 +285,13 @@ if __name__ == '__main__':
             _dist_coefficients, _camera_matrix = np.zeros((1, 5)), np.array(
                 [[im_height, 0.0, im_width / 2.0], [0.0, im_height, im_height / 2.0], [0.0, 0.0, 1.0]])
 
-        estimate_gaze(image_file_name, image, _dist_coefficients, _camera_matrix)
+        yaw_hat, pitch_hat = estimate_gaze(image_file_name, image, _dist_coefficients, _camera_matrix, args, output_images_path)
+
+        yaw_by_image_name[os.path.splitext(image_file_name)[0]] = yaw_hat
+        pitch_by_image_name[os.path.splitext(image_file_name)[0]] = pitch_hat
+    
+    #print('timestamp_by_image_name =', timestamp_by_image_name)
+    #print('yaw_by_image_name =', yaw_by_image_name)
+    #print('pitch_by_image_name =', pitch_by_image_name)
+    
+    write_estimated_gaze_to_file(Path(args.video_path).stem, timestamp_by_image_name, pitch_by_image_name, yaw_by_image_name)
