@@ -19,4 +19,4 @@ Feature extraction works almost[^1] exactly the same way as in my L2CS-Net repo.
 
 For the output format (.csv files) also refer to my L2CS-Net repo.
 
-[^1] only one difference: The -v parameter is not supported. Meaning that video output with the estimated gaze drawn into it is not possible.
+[^1]: only one difference: The -v parameter is not supported. Meaning that video output with the estimated gaze drawn into it is not possible.
