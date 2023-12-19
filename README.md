@@ -15,7 +15,7 @@ The above 3 steps fix an error that prevents importing ParamSpec from typing_ext
 11. $ mkdir Frames<br>
 **NOTE**: Do not put anything inside the above created folder. First, the contents get deleted multiple times when the feature extraction script is executed. Also, if there is another file inside such folder then that might confuse the program leading to undefined behavior (analyzing files that are not meant to be analyzed, thinking there are more video frames than there really are, etc.).
 
-Feature extraction works almost[*] exactly the same way as in my L2CS-Net repo. It's explained at the end of that repo's README.md. Note that rt_gene will download some model files when it is executed for the first time.<br>
-[*] only one difference: The -v parameter is not supported. Meaning that video output with the estimated gaze drawn into it is not possible.
+Feature extraction works almost[^1] exactly the same way as in my L2CS-Net repo. It's explained at the end of that repo's README.md. Note that rt_gene will download some model files when it is executed for the first time.<br>
+[^1] only one difference: The -v parameter is not supported. Meaning that video output with the estimated gaze drawn into it is not possible.
 
 For the output format (.csv files) also refer to my L2CS-Net repo.
