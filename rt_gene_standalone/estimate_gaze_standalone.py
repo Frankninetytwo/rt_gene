@@ -133,12 +133,8 @@ def estimate_gaze(base_name, color_img, dist_coefficients, camera_matrix, args, 
             # cv2.imwrite(os.path.join(output_images_path, os.path.splitext(base_name)[0] + '_left.jpg'), subject.left_eye_color)
             # cv2.imwrite(os.path.join(output_images_path, os.path.splitext(base_name)[0] + '_right.jpg'), subject.right_eye_color)
 
-        filename = os.path.splitext(base_name)[0]
         yaw_hat = gaze[1]
         pitch_hat = gaze[0]
-        with open(os.path.join(output_images_path, filename + '_output_%s.txt'%(subject_id)), 'w+') as f:
-            f.write(filename + ', [' + str(headpose[1]) + ', ' + str(headpose[0]) + ']' +
-                    ', [' + str(gaze[1]) + ', ' + str(gaze[0]) + ']' + '\n')
     
     return yaw_hat, pitch_hat
 
@@ -182,10 +178,10 @@ if __name__ == '__main__':
                         help='List of gaze estimators')
     parser.add_argument('--device-id-facedetection', dest="device_id_facedetection", type=str, default='cuda:0', help='Pytorch device id. Set to "cpu:0" to disable cuda')
 
-    parser.set_defaults(vis_gaze=True)
-    parser.set_defaults(save_gaze=True)
+    parser.set_defaults(vis_gaze=False)
+    parser.set_defaults(save_gaze=False)
     parser.set_defaults(vis_headpose=False)
-    parser.set_defaults(save_headpose=True)
+    parser.set_defaults(save_headpose=False)
 
     args = parser.parse_args()
 

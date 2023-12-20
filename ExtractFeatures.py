@@ -33,7 +33,6 @@ if __name__ == '__main__':
         '--video ' + args.video_path + ' '
         '--no-vis-headpose '
         '--no-vis-gaze '
-        '--save-gaze '
         '--gaze_backend pytorch '
         '--models rt_gene/model_nets/gaze_model_pytorch_vgg16_prl_mpii_allsubjects1.model '
         '--device-id-facedetection cpu:0'
