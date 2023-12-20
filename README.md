@@ -9,7 +9,7 @@ NOTE: The $ symbol means that the text that follows must be executed in terminal
 06. $ pip uninstall fastapi
 07. $ pip install --no-cache fastapi<br>
 The above 3 steps fix an error that prevents importing ParamSpec from typing_extensions. Step 7 will probably throw some errors regarding dependency issues with tensorflow, but that doesn't matter, because rt_gene allows to use torch instead.
-08. git clone https://github.com/Frankninetytwo/rt_gene.git
+08. $ git clone https://github.com/Frankninetytwo/rt_gene.git
 09. $ cd rt_gene
 10. $ mkdir OutputImages
 11. $ mkdir Frames<br>
