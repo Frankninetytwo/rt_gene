@@ -194,10 +194,10 @@ if __name__ == '__main__':
     # !!!!!
     # CAREFUL WHEN EDITING THIS PATH: Everything inside this folder gets deleted, so don't
     # assign a path to it that contains valuable data.
-    im_path = str(Path.cwd()) + '/Frames'
+    image_folder = 'Frames'
     timestamp_by_image_name = dict()
 
-    os.system('rm ' + im_path + '/*')
+    os.system('rm ' + image_folder + '/*')
 
 
     output_images_path = str(Path.cwd()) + '/OutputImages'
@@ -227,7 +227,7 @@ if __name__ == '__main__':
             current_timestamp = round(frame_index * (1.0 / video_capture.get(cv2.CAP_PROP_FPS)), 3)
             timestamp_by_image_name[str(frame_index)] = current_timestamp
 
-            cv2.imwrite(im_path + '/' + str(frame_index) + ".jpg", frame)
+            cv2.imwrite(image_folder + '/' + str(frame_index) + ".jpg", frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -238,7 +238,7 @@ if __name__ == '__main__':
 
 
     image_path_list = []
-    for image_file_name in sorted(os.listdir(im_path)):
+    for image_file_name in sorted(os.listdir(image_folder)):
         if image_file_name.lower().endswith('.jpg') or image_file_name.lower().endswith('.png') or image_file_name.lower().endswith('.jpeg'):
             if '_gaze' not in image_file_name and '_headpose' not in image_file_name:
                 image_path_list.append(image_file_name)
@@ -272,7 +272,7 @@ if __name__ == '__main__':
     
     for image_file_name in tqdm(image_path_list):
         tqdm.write('Estimate gaze on ' + image_file_name)
-        image = cv2.imread(os.path.join(im_path, image_file_name))
+        image = cv2.imread(os.path.join(image_folder, image_file_name))
         if image is None:
             tqdm.write('Could not load ' + image_file_name + ', skipping this image.')
             continue
