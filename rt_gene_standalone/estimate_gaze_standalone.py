@@ -142,7 +142,7 @@ def estimate_gaze(base_name, color_img, dist_coefficients, camera_matrix, args, 
 # File will be written to
 # CWD/Output/filename_of_video_without_file_extension.csv
 # where filename_of_video_without_file_extension is a parameter of this function.
-def write_estimated_gaze_to_file(filename_of_video_without_file_extension, timestamp_by_image_name, pitch_by_image_name, yaw_by_image_name):
+def write_estimated_gaze_to_file(filename_of_video_without_file_extension, timestamp_by_image_name, pitch_by_image_name, yaw_by_image_name, first_frame_to_analyze):
     
     output_path = str(Path.cwd()) + '/Output/' + filename_of_video_without_file_extension + '.csv'
     
@@ -152,7 +152,7 @@ def write_estimated_gaze_to_file(filename_of_video_without_file_extension, times
 
         # n-th frame of video is written to file with the name n.jpg. This name is used
         # as key to access the coressponding timestamp, yaw and pitch.
-        for image_name in [str(i) for i in range(0, len(timestamp_by_image_name.keys()))]:
+        for image_name in [str(i) for i in range(first_frame_to_analyze, first_frame_to_analyze + len(timestamp_by_image_name.keys()))]:
             f.write('{},{},{},{},{}\n'.format(
                 int(image_name)+1,
                 str(round(timestamp_by_image_name[image_name], 3)), # +/- 0.001 radians (less 0.1 degrees) can be rounded off (easier to compare output file to output from OpenFace)
@@ -163,7 +163,19 @@ def write_estimated_gaze_to_file(filename_of_video_without_file_extension, times
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Estimate gazes in a video using pretrained model')
-    parser.add_argument('--video', type=str, dest='video_path', help='path of the video to proccess')
+    parser.add_argument(
+        '--video',
+        dest='video_path',
+        type=str,
+        help='path of the video to proccess'
+        )   
+    parser.add_argument(
+        '--timestamp-to-start-at',
+        dest='timestamp_to_start_at',
+        type=float,
+        help='point in time of the video from which on gaze shall be estimated (in seconds)',
+        default=0.0
+    )
     parser.add_argument('--calib-file', type=str, dest='calib_file', default=None, help='Camera calibration file')
     parser.add_argument('--vis-headpose', dest='vis_headpose', action='store_true', help='Display the head pose images')
     parser.add_argument('--no-vis-headpose', dest='vis_headpose', action='store_false', help='Do not display the head pose images')
@@ -206,6 +218,7 @@ if __name__ == '__main__':
 
     video_capture = cv2.VideoCapture(args.video_path)
     frame_index = 0
+    first_frame_to_analyze = None
 
     while True:
 
@@ -220,13 +233,19 @@ if __name__ == '__main__':
             #timestamp_by_frame.append(video_capture.get(cv2.CAP_PROP_POS_MSEC))
             # ... So instead I'm going to estimate the timestamp like OpenFace does it
             # (see /OpenFace/lib/local/Utilities/src/SequenceCapture.cpp, line 457)
-            current_timestamp = round(frame_index * (1.0 / video_capture.get(cv2.CAP_PROP_FPS)), 3)
-            timestamp_by_image_name[str(frame_index)] = current_timestamp
+            current_timestamp = round(float(frame_index) * (1.0 / video_capture.get(cv2.CAP_PROP_FPS)), 3)
 
-            cv2.imwrite(image_folder + '/' + str(frame_index) + ".jpg", frame)
+            if current_timestamp >= args.timestamp_to_start_at:
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+                if first_frame_to_analyze is None:
+                    first_frame_to_analyze = frame_index
+
+                timestamp_by_image_name[str(frame_index)] = current_timestamp
+
+                cv2.imwrite(image_folder + '/' + str(frame_index) + ".jpg", frame)
+
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 
             frame_index += 1
 
@@ -234,10 +253,9 @@ if __name__ == '__main__':
 
 
     image_path_list = []
-    for image_file_name in sorted(os.listdir(image_folder)):
-        if image_file_name.lower().endswith('.jpg') or image_file_name.lower().endswith('.png') or image_file_name.lower().endswith('.jpeg'):
-            if '_gaze' not in image_file_name and '_headpose' not in image_file_name:
-                image_path_list.append(image_file_name)
+
+    for i in range(first_frame_to_analyze, frame_index):
+        image_path_list.append(str(i) + '.jpg')
 
     tqdm.write('Loading networks')
     landmark_estimator = LandmarkMethodBase(device_id_facedetection=args.device_id_facedetection,
@@ -277,7 +295,7 @@ if __name__ == '__main__':
             _dist_coefficients, _camera_matrix = load_camera_calibration(args.calib_file)
         else:
             im_width, im_height = image.shape[1], image.shape[0]
-            tqdm.write('WARNING!!! You should provide the camera calibration file, otherwise you might get bad results. Using a crude approximation!')
+            #tqdm.write('WARNING!!! You should provide the camera calibration file, otherwise you might get bad results. Using a crude approximation!')
             _dist_coefficients, _camera_matrix = np.zeros((1, 5)), np.array(
                 [[im_height, 0.0, im_width / 2.0], [0.0, im_height, im_height / 2.0], [0.0, 0.0, 1.0]])
 
@@ -290,4 +308,4 @@ if __name__ == '__main__':
     #print('yaw_by_image_name =', yaw_by_image_name)
     #print('pitch_by_image_name =', pitch_by_image_name)
     
-    write_estimated_gaze_to_file(Path(args.video_path).stem, timestamp_by_image_name, pitch_by_image_name, yaw_by_image_name)
+    write_estimated_gaze_to_file(Path(args.video_path).stem, timestamp_by_image_name, pitch_by_image_name, yaw_by_image_name, first_frame_to_analyze)

@@ -13,6 +13,14 @@ def parse_args():
         type=str
         )
     
+    parser.add_argument(
+        '--timestamp-to-start-at',
+        dest='timestamp_to_start_at',
+        help='point in time of the video from which on gaze shall be estimated (in seconds)',  
+        type=float,
+        default=0.0
+    )
+    
     return parser.parse_args()
 
 
@@ -31,6 +39,7 @@ if __name__ == '__main__':
     os.system(
         'python3 rt_gene_standalone/estimate_gaze_standalone.py '
         '--video ' + args.video_path + ' '
+        '--timestamp-to-start-at ' + str(args.timestamp_to_start_at) + ' '
         '--no-vis-headpose '
         '--no-vis-gaze '
         '--gaze_backend pytorch '
